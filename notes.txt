@@ -240,7 +240,7 @@ This is called Lexical Scoping. Java 'reaches' outside it's current scope and lo
 
 A caveat: we can only access local variables that are final, in the enclosing scope. In this case, the parameter "final String letter"
 
-The variables must be final because lambda expressions may be invoked immediately, or they may be invoked lazily, or from multiple threads. To avoid race conditions, we make plocal variables immutable using the final modifier. 
+The variables must be final because lambda expressions may be invoked immediately, or they may be invoked lazily, or from multiple threads. To avoid race conditions, we make local variables immutable using the final modifier. 
 
 
 Okay... back to looking for names. 
@@ -254,5 +254,59 @@ There are still smells in the code.
 We don't want to use the static method to cache each variable. We want to narrow the scope to where it is actually needed. 
 
 We can do that using the Function Interface. This is another functional interface in Java 8. From the java.util.function.Function class docs: Functional interfaces provide target types for lambda expressions and method references.
+
+Target Types and Context -  https://stackoverflow.com/questions/33196325/java-8-target-typing
+
+final Function<String, Predicate<String>> startsWithLetter = 
+
+(string letter) -> { Predicate<String> checkStarts = (String name) -> name.startsWith(letter); 
+return checkStarts; 
+}; 
+
+instead of explicitly creating the Predicate, we can replace it with a lambda expression. 
+
+final Function<String, Predicate<String>> startsWithLetter = 
+
+(String letter) -> (String name) -> name.startsWith(letter); 
+
+So now we can write: 
+
+final long countFriendsStartN = friends.stream()
+	.filter(startsWithLetter.apply("N")).count(); 
+
+Note what we are passing to filter. 
+We are passing an instance of Function<String, Predicate<String>>. 
+
+That is, a function that takes a String, and returns a predicate. The functional method of the Function interface is apply(). 
+
+Difference between Functional<T, R> and Predicate<T> 
+
+Predicate<T>
+   * takes one parameter of type T and returns a boolean for whatever 'check' is being performed. 	
+
+Function<T, R> 
+ * takes a parameter of type T and returns a result of type R. 
+
+We can use Predicate anytime we have a boolean target type. (see SO article on target types and context) 
+
+methods like filter() that evaluate elements can take Predicate as their parameters.
+
+We can use Function anywhere we want to transorm an input to another value.    map() uses Function as its parameter. 
+
+
+
+
+// Picking an Element. 
+
+
+
+
+
+
+
+
+
+
+
 
 
