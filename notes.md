@@ -503,8 +503,11 @@ A Consumer is functional interface with one method, accept(). This method takes 
 
 
 
-// Default methods
+## Default methods
+In the past, interfaces were only allowed to have abstract methods. 
+Now, interfaces can have default methods. 
 
+``` java
 public class DefaultMethods {
   public interface Fly {
     default void takeOff() { System.out.println("Fly::takeOff"); }
@@ -551,6 +554,8 @@ public class DefaultMethods {
   }
 }
 
+```
+
 
 Running the main method above, generates: 
 
@@ -560,6 +565,16 @@ SeaPlane::cruise currently cruise like: Sail::cruise
 Fly::land
 
 What's happening? 
-	"FastFly::takeOff" is printed from the call to  seaPlane.takeOff()
+	"FastFly::takeOff" is printed from the call to `seaPlane.takeOff()`
 	SeaPlane implements FastFly and Sail. 
 	So it 'sees' the default method `takeOff` in the `FastFly` interface
+	`FastFly` carries forward the default methods from its supertype, `Fly`.
+	Additionally, it overrides the default method `takeOff` in the supertype. 
+	
+	"Vehicle::turn" is printed from the call to `seaPlane.turn()` the supertype' implementation of the `turn` method is used
+
+	The compiler forces us to implement the `cruise` function in `SeaPlane` becuase the defulat implementaions in the interfaces `FastFly` and `Sail` conflict. 
+	
+
+
+
