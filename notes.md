@@ -577,4 +577,271 @@ What's happening?
 	
 
 
+# Creating Fluent Interfaces Using Lambda Expressions
 
+Domain
+
+``` java
+
+public class Mailer {
+  public void from(final String address) { /*... */ }
+  public void to(final String address)   { /*... */ }
+  public void subject(final String line) { /*... */ }
+  public void body(final String message) { /*... */ }
+  public void send() { System.out.println("sending..."); }
+
+  //...
+  public static void main(final String[] args) {
+    Mailer mailer = new Mailer();
+    mailer.from("build@agiledeveloper.com");
+    mailer.to("venkats@agiledeveloper.com");
+    mailer.subject("build notification");
+    mailer.body("...your code sucks...");
+    mailer.send();
+  }
+}
+
+```
+
+Venkat points out two code smells. 
+	1.repeated use of the `mailer` object. 
+	2.unclear object lifetime
+
+## Method Chaining
+
+Instead of each method returning void, they can return an instance. We can use `this` as the instance, after all, `this` is the object that invokes the first method. 
+
+
+Refactored: 
+
+``` java
+
+public class MailBuilder {
+  public MailBuilder from(final String address) { /*... */; return this; }
+  public MailBuilder to(final String address)   { /*... */; return this; }
+  public MailBuilder subject(final String line) { /*... */; return this; }
+  public MailBuilder body(final String message) { /*... */; return this; }
+  public void send() { System.out.println("sending..."); }
+
+  //...
+  public static void main(final String[] args) {
+    new MailBuilder()
+      .from("build@agiledeveloper.com")
+      .to("venkats@agiledeveloper.com")
+      .subject("build notification")
+      .body("...it sucks less...")
+      .send();
+  }
+}
+```
+
+## Making the API More Intuitive and Fluent
+
+``` java 
+public class FluentMailer {
+  private FluentMailer() {}
+  
+  public FluentMailer from(final String address) { /*... */; return this; }
+  public FluentMailer to(final String address)   { /*... */; return this; }
+  public FluentMailer subject(final String line) { /*... */; return this; }
+  public FluentMailer body(final String message) { /*... */; return this; }
+  
+  public static void send(final Consumer<FluentMailer> block) { 
+    final FluentMailer mailer = new FluentMailer();
+    block.accept(mailer); 
+    System.out.println("sending..."); 
+  }
+
+  //...
+  public static void main(final String[] args) {
+    FluentMailer.send(mailer ->
+      mailer.from("build@agiledeveloper.com")
+            .to("venkats@agiledeveloper.com")
+            .subject("build notification")
+            .body("...much better..."));
+  }
+}
+
+```
+
+Changes made: 
+
+Constructor is private. Stopping us from direct object creation. 
+`Send` is static and expects a `Consumer`. Instead of creating an instance, users will invoke send, and pass a block of code (most likley a lambda) 
+
+
+
+## Dealing with Exceptions 
+
+Types of Exceptions
+** Checked **  - Errors outside the control of a program. FileNotFoundException, for example. Java verifies checked exceptions at compile-time. 
+
+** Unchecked ** - Errors that reflect some error inside the program logic. i.e., ArithmeticException during divide by zero.  
+
+``` java
+// This will not compile 
+public class HandleException {
+  public static void main(String[] args) throws IOException {
+    Stream.of("/usr", "/tmp")
+          .map(path -> {
+            try {
+             return new File(path).getCanonicalPath();             
+            } catch(IOException ex) {
+             return ex.getMessage();
+            }
+           }) 
+          .forEach(System.out::println);    
+  }
+}
+
+```
+
+The compile error is in the `map` method. `map` expects `Function<T,R>` as a parameter
+`Function.apply()` does not throw any checked exceptions. So, the lambda is ont permitted to throw any checked exceptions. 
+
+We have two options: handle the exception within the lambda, or catch it and rethrow it as an unchecked exception. 
+
+The first option looks like: 
+
+``` java 
+Stream.of("/usr", "/tmp").map(path -> {
+	try{
+		return new File(path).getCanonicalPath(); 
+	} catch (IOException ex){
+	return ex.getMessage(); 
+	}
+} // end lambda
+
+
+The second approach is to `throw new RuntimeException(ex)` within the catch block. 
+
+
+```
+
+# Working with Resources
+
+Sample Class
+
+``` java 
+
+public class FileWriterExample {
+  private final FileWriter writer;
+  
+  public FileWriterExample(final String fileName) throws IOException {
+    writer = new FileWriter(fileName);
+  }
+  public void writeStuff(final String message) throws IOException {
+    writer.write(message);
+  }
+  public void finalize() throws IOException {
+    writer.close();
+  }
+  //...
+
+  public void close() throws IOException {
+    writer.close();
+  }
+
+/*
+  public static void main(final String[] args) throws IOException {
+    final FileWriterExample writerExample = 
+      new FileWriterExample("peekaboo.txt");
+    writerExample.writeStuff("peek-a-boo");      
+  }
+*/
+
+public static void callClose(final String[] args) throws IOException {
+    final FileWriterExample writerExample = 
+      new FileWriterExample("peekaboo.txt");
+      
+    writerExample.writeStuff("peek-a-boo");      
+    writerExample.close();
+}
+
+  public static void main(final String[] args) throws IOException {
+    final FileWriterExample writerExample = 
+      new FileWriterExample("peekaboo.txt");
+    try {
+      writerExample.writeStuff("peek-a-boo");            
+    } finally {
+      writerExample.close();      
+    }
+  }
+
+}
+
+
+```
+
+## Using Lambda Expressions to Clean up Resources. 
+
+
+Automatic Resource Management (ARM) - introduced in Java 7. Is a good way to ensoure that external resources are cleaned up. They use a special form of the `try` block. AutoCloseable is the interface that enforces this. 
+
+We can also use lambda expressions 
+
+In this example, FileWriter represents a resource that needs timely cleanup. 
+
+``` java 
+
+public class FileWriterEAM  {
+  private final FileWriter writer;
+  
+  private FileWriterEAM(final String fileName) throws IOException {
+    writer = new FileWriter(fileName);
+  }
+  private void close() throws IOException {
+    System.out.println("close called automatically...");
+    writer.close();
+  }
+  public void writeStuff(final String message) throws IOException {
+    writer.write(message);
+  }
+  //...
+
+  public static void use(final String fileName, 
+    final UseInstance<FileWriterEAM, IOException> block) throws IOException {
+    
+    final FileWriterEAM writerEAM = new FileWriterEAM(fileName);    
+    try {
+      block.accept(writerEAM);
+    } finally {
+      writerEAM.close();
+    }
+  }
+
+  public static void main(final String[] args) throws IOException {
+  
+    System.out.println("//" + "START:EAM_USE_OUTPUT");
+    FileWriterEAM.use("eam.txt", writerEAM -> writerEAM.writeStuff("sweet"));
+    System.out.println("//" + "END:EAM_USE_OUTPUT");
+
+    FileWriterEAM.use("eam2.txt", writerEAM -> {
+        writerEAM.writeStuff("how");
+        writerEAM.writeStuff("sweet");      
+      });
+
+  }
+
+}
+
+```
+
+Note the code in `use` this is the *execute around method* pattern. 
+
+The `UseInstance` is a functional interface that we define. 
+
+``` java 
+
+@FunctionalInterface
+public interface UseInstance<T,X extends Throwable> {
+
+void accept( T instance) throws X; 
+
+}
+
+```
+
+We alos could have used a `java.function.Consumer` interface. However, Lambda expressions can only throw checked exceptions defined as part of the signature of the abstract method being synthesized. 
+
+When we implemented this in `use`, we defined type `T` to be `FileWriterEAM`, and the generic exception `X` to be `IOException`
