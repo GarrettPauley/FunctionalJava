@@ -827,9 +827,11 @@ public class FileWriterEAM  {
 
 ```
 
-Note the code in `use` this is the *execute around method* pattern. 
+Note the code in `use` ... this is the *execute around method* pattern. 
+this pattern is useful when we want to ensure prompt cleanup of resources. 
+the `synchronized` keyword is an example of the *execute around method*
 
-The `UseInstance` is a functional interface that we define. 
+`UseInstance` is a functional interface that we define. 
 
 ``` java 
 
@@ -842,6 +844,122 @@ void accept( T instance) throws X;
 
 ```
 
-We alos could have used a `java.function.Consumer` interface. However, Lambda expressions can only throw checked exceptions defined as part of the signature of the abstract method being synthesized. 
+We also could have used a `java.function.Consumer` interface. However, Lambda expressions can only throw checked exceptions defined as part of the signature of the abstract method being synthesized. 
 
 When we implemented this in `use`, we defined type `T` to be `FileWriterEAM`, and the generic exception `X` to be `IOException`
+
+
+## Managing Locks
+
+Some code that uses a `Lock`
+
+``` java 
+
+public class Locking {
+  Lock lock = new ReentrantLock(); //or mock
+  
+  protected void setLock(final Lock mock) {
+    lock = mock;
+  } 
+
+  public void doOp1() {
+    lock.lock();
+    try {
+      //...critical code...
+    } finally {
+      lock.unlock();
+    }
+  }
+  //...
+
+  public void doOp2() {
+    runLocked(lock, () -> {/*...critical code ... */});
+  }
+  
+  public void doOp3() {
+    runLocked(lock, () -> {/*...critical code ... */});
+  }
+  
+  public void doOp4() {
+    runLocked(lock, () -> {/*...critical code ... */});
+  }
+
+}
+
+```
+
+
+
+
+
+## Creating Concise Exception Tests
+
+Suppose we have the following class: 
+
+```java 
+
+public class RodCutter {
+  private boolean mustFail;
+  
+  public RodCutter(final boolean fail) { mustFail = fail; }
+
+  public void setPrices(final List<Integer> prices) {
+    //...
+    if(mustFail) 
+      throw new RodCutterException();
+  }
+
+  public int maxProfit(final int length) {
+    if (length == 0) throw new RodCutterException();
+    
+    return 0;
+  }
+}
+
+```
+
+We also write a unit test to verify that `maxProfit` throws an exceptoin if the argument is zero. 
+
+``` java 
+ @Test public void VerboseExceptionTest() {
+    rodCutter.setPrices(prices);
+    try {
+      rodCutter.maxProfit(0);
+      fail("Expected exception for zero length");
+    } catch(RodCutterException ex) {
+      assertTrue("expected", true);
+    }
+  }
+
+```
+
+Helper class for exception testing
+java ```
+public class TestHelper {
+  public static <X extends Throwable> Throwable assertThrows(
+    final Class<X> exceptionClass, final Runnable block) {
+      
+    try {
+      block.run();
+    } catch(Throwable ex) {
+      if(exceptionClass.isInstance(ex))
+        return ex;
+    }
+    fail("Failed to throw expected exception ");
+    return null;
+  }
+}
+
+```
+
+In `TestHelper`, the `assertThrows` static method expects an exception class and a blcok of code to run. Since this helper class is supposed to help with Exception testing, we expect the code block to produce an excpetion. In the catch block we compare the returned exception, to the `exceptionClass` that we provided. If no exception is thrown from `block.run()`, then our exception test failed altogether. 
+
+Now we can write a concise test: 
+
+``` java 
+ @Test 
+  public void ConciseExceptionTest() {
+    rodCutter.setPrices(prices);
+    assertThrows(RodCutterException.class, () -> rodCutter.maxProfit(0));
+  }
+```
