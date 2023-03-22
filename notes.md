@@ -963,3 +963,94 @@ Now we can write a concise test:
     assertThrows(RodCutterException.class, () -> rodCutter.maxProfit(0));
   }
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Chapter 6: Being Lazy 
+
+## Delayed Initialization
+Create things when you need them, no sooner. 
+
+``` java 
+
+public class Heavy {
+  public Heavy() { System.out.println("Heavy created"); }
+
+  public String toString() { return "quite heavy"; }
+}
+
+```
+
+This class just represents a heavyweight resource that is expensive to create and manage. 
+
+``` java 
+
+public class HolderNaive {
+  private Heavy heavy;
+  
+  public HolderNaive() {
+    System.out.println("Holder created");
+  }
+  
+  public Heavy getHeavy() {
+    if(heavy == null) {
+      heavy = new Heavy();
+    }
+    
+    return heavy;
+  }
+
+//...
+
+  public static void main(final String[] args) {
+    final HolderNaive holder = new HolderNaive();
+    System.out.println("deferring heavy creation...");
+    System.out.println(holder.getHeavy());
+    System.out.println(holder.getHeavy());
+  }
+}
+
+```
+
+`HolderNaive` is simple. We have an instance variable for `Heavy`. When we initialize a `NaiveHolder` will it eagerly create the burdensome `Heavy` object? 
+
+Running the main method generates the following output: 
+	Holder created
+	deferring heavy creation...
+	Heavy created
+	quite heavy
+	quite heavy
+
+Easy enough. But this is not thread safe. For an instance of `HolderNaive` the dependent instance `heavy` is created on the first call to the `getHeavy` method. If two or more threads call the getHeavy method at the same time, then we might end up with multiple`Heavy` instances. 
+
+I know what you're thinking... Race condition? Lets just make `getHeavy()` _synchronized_
+
+public synchronized Heavy getHeavy(){
+
+if(heavy == null){
+heavy = new Heavy()
+}
+
+return heavy; 
+}
+
+Now when two threads try to access `heavy`, one will have to wait their turn. 
+
+This solves one problem, but a performance issue has snuck in. Each call to `getHeavy` has to deal with the overhead of synchronization. 
+
+
+We really only need to solve for the race condition when `heavy` is being initialized. Once the reference is created, we should be free to use the `getHeavy` method. 
+
+Lets look at `java Supplier<T> `
