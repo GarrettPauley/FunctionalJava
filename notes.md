@@ -1053,4 +1053,209 @@ This solves one problem, but a performance issue has snuck in. Each call to `get
 
 We really only need to solve for the race condition when `heavy` is being initialized. Once the reference is created, we should be free to use the `getHeavy` method. 
 
-Lets look at `java Supplier<T> `
+Lets look at 
+``` 
+java 
+
+ Supplier<T> 
+
+```
+
+Supplier is a functinoal interface with one method, `get`, which will return an instance. 
+
+``` 
+java
+
+Supplier<Heavy> supp = () -> new Heavy();  // returns an instance
+Supplier<Heavy> supp = Heavy::new;         // also return an instance
+```
+
+
+If we are to leverage this, we need to postpone, and cache the returned instance. 
+
+
+Here's how the final `Holder` will look: 
+
+``` 
+java 
+
+public class Holder {
+  private Supplier<Heavy> heavy = () -> createAndCacheHeavy();
+  
+  public Holder() {
+    System.out.println("Holder created");
+  }
+
+  public Heavy getHeavy() {
+    return heavy.get();
+  }
+  //...
+
+  private synchronized Heavy createAndCacheHeavy() {
+    class HeavyFactory implements Supplier<Heavy> {
+      private final Heavy heavyInstance = new Heavy(); // *Note* 
+
+      public Heavy get() { return heavyInstance; }
+    }
+
+    if(!HeavyFactory.class.isInstance(heavy)) {
+      heavy = new HeavyFactory();
+    }
+    
+    return heavy.get();
+  }
+
+  public static void main(final String[] args) {
+    final Holder holder = new Holder();
+    System.out.println("deferring heavy creation...");
+    System.out.println(holder.getHeavy());
+    System.out.println(holder.getHeavy());
+  }
+} 
+
+
+```
+
+Now consider the case where two threads compete for a newly created instance of `Holder` by calling `getHeavy()`
+
+getHeavy() will call heavy.get(), this will call `createAndCacheHeavy()`, which is synchronized. One of the threads will wait. Whichever thread enters will check if `heavy` is an instance of `HeavyFactory`, if not, a new instance of `HeavyFactory` is created. Note that a new instance of HeavyFactory creates `heavyInstance`, 
+
+
+
+
+# Lazy streams. 
+
+
+Streams have two types of methods, `intermediate` and `terminal`
+`intermediate` functions, like `filter` and `map` return immediately. The lambda expressions provided to them are cached and are not evaluated until a`terminal` operation is called. Even then, not all cached code is executed.
+
+Consider the following list of names 
+
+``` java
+
+    List<String> names = Arrays.asList("Brad", "Kate", "Kim", "Jack", "Joe",
+        "Mike", "Susan", "George", "Robert", "Julia", "Parker", "Benson");
+```
+
+we want the first name that is only three letters long, we will print it in all caps. 
+
+
+``` java
+names.stream().filter(s -> s.length() == 3).map(s -> s.toUpperCase()).findFirst().get()
+
+```
+
+How lazy are streams? _very_ lazy. 
+
+These  helper functions will give us a peak under the hood: 
+
+```
+java 
+
+public static int getLength(final String name){
+
+	System.out.println("get length for " + name); 
+	return name.length(); 
+
+}
+
+
+public static String toUpper(final String name){
+
+	System.out.println("changing to uppercase for " + name); 
+	return name.toUpperCase(); 
+
+}
+
+
+
+
+
+``` 
+
+replacing the intermediate functions, `filter` and `map` with our helpers: 
+
+
+``` java
+names.stream().filter(s -> s.getLength(s) == 3).map(s -> s.toUpper(s).findFirst().get()
+
+```
+Running this in the console shows that the order of execution is not _eager_, it is _lazy_. The intermidate functions delay their execution until the last possible moment. If a terminal method is satisfied, operations stop. If not, more elements from the collectoin are selected for processing. 
+
+
+## Infinitely Lazy. 
+
+How might we handle a growing set? A set that continues to grow while we process the data? 
+
+Let's look at prime numbers, of which there are infinitely many. 
+
+Lets write a helper function that determines if a number is prime. 
+
+// A number is prime if it is not divisible by a number between 2 and the square root of the number. 
+
+public static boolean isPrime(final int number){
+return number > 1 && 
+IntStream.rangeClosed(2, (int) Math.sqrt(number)).noneMatch(divisor -> number % divisor == 0)
+
+}
+
+`rangeClosed()` returns the range inclusive. i.e., rangeClosed(1,5) = 1,2,3,4,5
+
+
+`noneMatch()` takes a `Predicate` as an argument and returns true if the lambda expression returns false for all values in the range. 
+
+So our expression reads as, 
+For all number between 2 and the square root of the number being evaluated, if no number in that range evenly divides the number, return true. 
+
+
+Great. Now we can iterate over numbers, inrementing by 1 as we go, and build a list of all the primes, right? 
+
+*wrong*. We would reach a recusion error, or we would run out of memory. We are dealing with an infinite set. 
+
+Streams are a strong solution for this because they only return elements when they are asked. So we can tap into a collection with a `stream` and retrieve a finite number of elements. 
+
+`Stream` has a static method, `iterate`, which can create an infinite `Stream`
+
+```
+java
+static <T> Stream<T>	iterate(T seed, UnaryOperator<T> f)
+
+```
+
+`iterate` takes two parameters
+	1. seed - a value to start the collection. 
+	2. instance of UnaryOperator - supplier of data in the collection. 
+
+```
+java
+
+@FunctionalInterface
+public interface UnaryOperator<T>
+extends Function<T,T>
+```
+
+
+```
+java 
+
+public class Primes {
+  private static int primeAfter(final int number) {
+    if(isPrime(number + 1))
+      return number + 1;
+    else
+      return primeAfter(number + 1);
+  }
+  
+  public static List<Integer> primes(final int fromNumber, final int count) {
+    return Stream.iterate(primeAfter(fromNumber - 1), Primes::primeAfter)
+                 .limit(count)
+                 .collect(Collectors.<Integer>toList());
+  }  
+
+
+```
+
+in `primes`, we iterate using `fromNumber - 1` as the `seed`, `primeAfter is the UnaryOperator'
+
+`iterate` returns a stream that caches the UnaryOperator. When we ask for a number of elements, and only then, the `Stream` feeds the current element to the UnaryOperator to get the next element. This is repeated until we get the number of elements that we asked for. 
+
