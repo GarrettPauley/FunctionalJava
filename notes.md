@@ -1,6 +1,6 @@
 Quotations and code examples are from "Functional Programming in Java" by Venkat Subramaniam
 
-// Stream.reduce()
+## Stream.reduce()
 
 Elements of the reduce function: 
 	Identity
@@ -130,7 +130,7 @@ Beautiful.
 
 
 
-// Transforming a list with lambdas. 
+## Transforming a list with lambdas. 
 
 Imperative approach. External iteration. 
 ``` java
@@ -164,7 +164,7 @@ friends
 .forEach(System.out::println); 
 
 ```
-// Method References 
+## Method References 
 
 In the above example, ``` System.out::println ```is used in place of
 ``` (name) -> System.out.println(name). ```
@@ -227,7 +227,7 @@ final Predicate<String> startsWithB = name -> name.startsWith('B')
 ```
 ... and so on. We have noisier duplication. That's bad. 
 
-// Lexical Scoping 
+## Lexical Scoping 
 
 We could try parameterzing a function. But filter() will only accept a function that accepts one parameter representing the context eleming in the collection, and returning a boolean result... That is the definition of the Predicate interface. The context element being the element currently in the pipeline. 
 
@@ -303,7 +303,7 @@ We can use Function anywhere we want to transorm an input to another value.    m
 
 
 
-// Chapter 3: Strings, Comparators and Filters. 
+## Strings, Comparators and Filters. 
 
 Iterating over a string
 ``` java
@@ -341,7 +341,7 @@ str.chars()
 	.forEach(ch -> System.out.println( (char) ch)); 
 ```
 
-// Comparisons
+## Comparisons
 
 consider the Person class
 
@@ -510,10 +510,9 @@ Map<Integer, List<People>> peopleByAge = people.stream()
 
 
 
-// Consumers
+## Consumers
 
 A `Consumer`is functional interface with one method, accept(). This method takes one input and does not return anything. 
-
 
 
 
@@ -593,7 +592,7 @@ What's happening?
 	
 
 
-# Creating Fluent Interfaces Using Lambda Expressions
+## Creating Fluent Interfaces Using Lambda Expressions
 
 Domain
 
@@ -734,7 +733,7 @@ The second approach is to `throw new RuntimeException(ex)` within the catch bloc
 
 ```
 
-# Working with Resources
+## Working with Resources
 
 Sample Class
 
@@ -1052,7 +1051,7 @@ Running the main method generates the following output:
 Easy enough. But this is not thread safe. For an instance of `HolderNaive` the dependent instance `heavy` is created on the first call to the `getHeavy` method. If two or more threads call the getHeavy method at the same time, then we might end up with multiple`Heavy` instances. 
 
 I know what you're thinking... Race condition? Lets just make `getHeavy()` _synchronized_
-
+``` java
 public synchronized Heavy getHeavy(){
 
 if(heavy == null){
@@ -1062,6 +1061,7 @@ heavy = new Heavy()
 return heavy; 
 }
 
+```
 Now when two threads try to access `heavy`, one will have to wait their turn. 
 
 This solves one problem, but a performance issue has snuck in. Each call to `getHeavy` has to deal with the overhead of synchronization. 
@@ -1139,7 +1139,7 @@ getHeavy() will call heavy.get(), this will call `createAndCacheHeavy()`, which 
 
 
 
-# Lazy streams. 
+## Lazy streams. 
 
 
 Streams have two types of methods, `intermediate` and `terminal`
