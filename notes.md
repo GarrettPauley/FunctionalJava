@@ -18,14 +18,14 @@ Combiner – a function used to combine the partial result of the reduction oper
 
 
 Example: Test if the sum of the first 6 positive integers is equal to 21. 
-
+``` java
 List<Integer> numbers = Arrays.asList(1,2,3,4,5,6); 
 int results = numbers
 	.stream()
 	.reduce(0, (subtotal, element) -> subtotal + element); 
 
 assertThat(result).isEqualTo(21); 
-
+```
 0 is the identity. The starting value, and the default if the stream is empty. 
 
 
@@ -34,28 +34,29 @@ assertThat(result).isEqualTo(21);
 
 
 The accumulator does not have to be a lambda. It can be another function. 
+``` java
 int results = numbers
         .stream()
         .reduce(0, Integer::sum);  // == 21, same as above. 
-
+```
 
 With Parallel Streams, we need another function. The job of that function is to combine the results of the parrallel streams into one end result. This was creatively named Combiner. 
-
+``` java
 List<Integer> ages = Arrays.asList(25, 30, 45, 28, 32);
 int computedAges = ages.parallelStream().reduce(0, (a, b) -> a + b, Integer::sum);
+``` 
 
-
-Integer.sum() is the combiner. In this case, when we are just adding subtotals and then combining those subtotats into one final result... We can just use a copy of the accumulator as the combiner. 
+``` Integer.sum() ``` is the combiner. In this case, when we are just adding subtotals and then combining those subtotats into one final result... We can just use a copy of the accumulator as the combiner. 
 
 like so: 
-
+``` java
 List<Integer> ages = Arrays.asList(25, 30, 45, 28, 32);
     int computedAges = ages
 	.parallelStream()
 	.reduce(0, 
 	(a, b) -> a + b, 
 	(a, b) -> a + b);
-
+```
 
 External Iterators, like the usual for loop or the foreach loop. Let us control what we want to do, and how we do it. This is not always desirable. We can use internal iterators,which we tell what we want to do - and we don't care about how it is done (how it is iterated over). 
 
@@ -64,7 +65,7 @@ We want to "Tell" the underlying libraries to handle the low level details where
 
 
 Let's consider enumerating a list of names, printing each name. 
-
+``` java
 final List<String> friends = 
     Arrays.asList("Brian", "Nate", "Neal", "Raju", "Sara", "Scott");
 
@@ -79,17 +80,17 @@ System.out.println(friends.get(i);
 for(String name : friends){
 System.out.println(name); 
 }
-
+```
 
 Approaching with internal iterators and functional interfaces (an interface with one abstract method, such as Runnable, EventListener, Consumer, etc)
-
+``` java
 friends.forEach( new Consumer<String>() {
 	@Override // Consumer is a functional interface
 	public void accept(final String name) {
 		System.out.println(name); 
 	}
 }
-
+```
 This uses an anonymous inner class of type Consumer.
 
 With the internal iterator, we are defining an anonymous function that specified what we want to do. In this case, Consumer's method (it's only one), accept() is defined by us. Whatever we define will be executed for each element in the collection. 
@@ -107,21 +108,21 @@ We can even omit the type information for the parameter, name.
 
 friends.forEach((name) -> System.out.println(name) ); 
 
-The type will be infered. 
+The type will be inferred. 
 
 And in cases where only one parameter is used, we can even remove the parentheses surrounding the parameter list. 
 
 friends.forEach( name  -> System.out.println(name) ); 
 
-However... With this stripped down, inferred parameter, the parameter is non-final. The motivation for keeping the parameters final is to avoid modifications, which would taint the pure function. 
+However... With this stripped-down, inferred parameter, the parameter is non-final. The motivation for keeping the parameters final is to avoid modifications, which would taint the pure function. 
 
-Pure functions are functions with no side effects, a goal of functinoal programming. 
+Pure functions are functions with no side effects, a goal of functional programming. 
 
 But wait, there's more... 
 
 We can shorten this code further by using "Method Reference" 
 
-friends.forEach(System.out::println); 
+``` friends.forEach(System.out::println); ```
 
 Beautiful. 
 
@@ -132,22 +133,23 @@ Beautiful.
 // Transforming a list with lambdas. 
 
 Imperative approach. External iteration. 
-
+``` java
  final List<String> uppercaseNames = new ArrayList<String>();
     
     for(String name : friends) {
       uppercaseNames.add(name.toUpperCase());
     }
+```
+Declarative approach - Internal iteration. 
 
-Declaritive approach - Internal iteration. 
-
+``` 
  final List<String> uppercaseNames = new ArrayList<String>();
 
  friends.forEach(name -> uppercaseNames.add(name.toUpperCase())); 
-
+```
 Can we do away with the empty List?
 
-We can use the .map() function from java Streams. 
+We can use the ```.map() ``` function from java Streams. 
 
 .map() is one of the fluent functions in the stream API
 
@@ -155,20 +157,21 @@ https://java-design-patterns.com/patterns/fluentinterface/
 
 This will help us avoid mutability and keep the code consise. 
 
+``` java
 friends
 .stream()
 .map(name -> name.toUpperCase()) //infered type as String.
 .forEach(System.out::println); 
 
-
+```
 // Method References 
 
-In the above example, System.out::println is used in place of
-(name) -> System.out.println(name). 
+In the above example, ``` System.out::println ```is used in place of
+``` (name) -> System.out.println(name). ```
 
-"""
+
 The java compiler will take either a lmbda expression or a reference to a method where an implementation of a functional interface is expected. 
-"""
+
 
 When should method reference be used in place of a lambda function? 
 
@@ -188,55 +191,57 @@ Removing duplication in lambdas.
 In the list of friends we want the number of  names that start with 'B'
 
 Easy enough. 
-
+``` java
 friends.stream().filter(name -> name.startsWith("B")).count(); 
-
+```
 
 what about the number of names that start with 'N'? 
 
 Same thing.. 
 
-
+``` java
 friends.stream().filter(name -> name.startsWith("N")).count(); 
-
+```
 But here we have some duplication. Violates the DRY principle. 
 
 We can assign lambda expressions to variables and reuse them. 
 
-The filter method, the reciever of the lambda expression in the examples above, takes a reference to java.util.function.Predicate, which is a functional interface. 
+The filter method, the receiver of the lambda expression in the examples above, takes a reference to java.util.function.Predicate, which is a functional interface. 
 
 Under the hood, the Java compiler synthesizes an implementation of Predicate's test() method. 
 
 
-A Predicate is a functional interface. It's functional method is testhttps://docs.oracle.com/javase/8/docs/api/java/util/function/Predicate.html
+A Predicate is a functional interface. Its functional method is testhttps://docs.oracle.com/javase/8/docs/api/java/util/function/Predicate.html
 
-Lets define a Predicate. 
+Let's define a Predicate. 
+``` java
 final Predicate<String> startsWithN = name -> name.startsWith("N"); 
-
+```
 We can rewrite our code to: 
-
+``` java
 friends.stream().filter(startsWithN).count(); 
-
-But we will rn into the same duplicate code when we need to search for other names. We'd need 
-
+```
+But we will run into the same duplicate code when we need to search for other names. We'd need 
+``` java
 final Predicate<String> startsWithB = name -> name.startsWith('B') 
-
+```
 ... and so on. We have noisier duplication. That's bad. 
 
 // Lexical Scoping 
 
 We could try parameterzing a function. But filter() will only accept a function that accepts one parameter representing the context eleming in the collection, and returning a boolean result... That is the definition of the Predicate interface. The context element being the element currently in the pipeline. 
 
-
+``` java
 public static Predicate<String> checkIfStartsWith(final String letter) {
 
 return name -> name.startsWith(letter); 
 
 }
+```
 
-Where is the lambda getting the 'letter' variable? There is nothing before it in the pipline, no stream() passing the value through... 
+Where is the lambda getting the 'letter' variable? There is nothing before it in the pipeline, no stream() passing the value through... 
 
-This is called Lexical Scoping. Java 'reaches' outside it's current scope and looks for the 'letter'. This lets us cache values from one context for later use in another context. 
+This is called Lexical Scoping. Java 'reaches' outside its current scope and looks for the 'letter'. This lets us cache values from one context for later use in another context. 
 
 A caveat: we can only access local variables that are final, in the enclosing scope. In this case, the parameter "final String letter"
 
@@ -247,7 +252,7 @@ Okay... back to looking for names.
 
 final long countFriendsStartN = friends.stream().filter(checkIfStartsWith("N")).count(); 
 
-So in filter() we pass a function, which returns a predicate. 
+So in ``` filter() ```  we pass a function, which returns a predicate. 
 
 
 There are still smells in the code. 
@@ -257,23 +262,25 @@ We can do that using the Function Interface. This is another functional interfac
 
 Target Types and Context -  https://stackoverflow.com/questions/33196325/java-8-target-typing
 
+``` java
 final Function<String, Predicate<String>> startsWithLetter = 
 
 (string letter) -> { Predicate<String> checkStarts = (String name) -> name.startsWith(letter); 
 return checkStarts; 
-}; 
+};
+```
 
 instead of explicitly creating the Predicate, we can replace it with a lambda expression. 
-
+``` java
 final Function<String, Predicate<String>> startsWithLetter = 
 
 (String letter) -> (String name) -> name.startsWith(letter); 
-
+```
 So now we can write: 
-
+``` java
 final long countFriendsStartN = friends.stream()
 	.filter(startsWithLetter.apply("N")).count(); 
-
+```
 Note what we are passing to filter. 
 We are passing an instance of Function<String, Predicate<String>>. 
 
@@ -299,19 +306,21 @@ We can use Function anywhere we want to transorm an input to another value.    m
 // Chapter 3: Strings, Comparators and Filters. 
 
 Iterating over a string
-
+``` java
 final String str = "W00t"; 
 str.chars().forEach(ch -> sout(ch)); 
-
-we can replace this with a method reference, since we are just passing the char right through the pipeline. 
-
+```
+we can replace this with a method reference since we are just passing the char right through the pipeline. 
+``` java
 str.chars().forEach(System.out::println); 
-
-Right now, this function will print the integer representing the char. We want to print the character. We can write a function to replace the method referenceof println()
-
+```
+Right now, this function will print the integer representing the char. We want to print the character. We can write a function to replace the method reference of println()
+``` java
 private static void printChar(int aChar){
 system.out.println( (char) aChar); 
 }
+
+```
 
 
 
@@ -319,21 +328,24 @@ str.chars().forEach(class_path_to_printChar::printChar);
 
 We could also just convert the integers to char earlier in the pipline with a mapping function. 
 
+``` java
 	str.chars()
 	.mapToObj(ch -> Character.valueOf( (char) ch)
 	.forEach(System.out::println); 
-
+```
 Selecting only the digits in a String. 
 
+``` java
 str.chars()
 	.filter(ch -> ch.isDigit(ch))
 	.forEach(ch -> System.out.println( (char) ch)); 
-
+```
 
 // Comparisons
 
 consider the Person class
 
+``` java
 public class Person {
   private final String name;
   private final int age;
@@ -369,11 +381,13 @@ return age - other.age;
 
 }
 
+```
 
 // sort the list in ascending order. 
 
+``` java
 people.stream().sorted((p1,p2) -> p1.ageDifference(p2)).collect(toList())
-
+```
 > Sorted Definition from docs
 .sorted()
 
@@ -392,9 +406,9 @@ the new stream
 < End Definition
 
 We can use method reference to really clean this up. 
-
+``` java
 people.sorted(Person::ageDifference); 
-
+```
 Just like in the first example, we are using Person p1 as the target of the ageDifference method, and Person p2 is passed as a parameter. 
 
 It must be certain that the first parameter is the target, and the second parameter is the argument for the invoked method. 
@@ -404,23 +418,26 @@ Using Comparator to reduce duplicated code.
 If we want to sort ascending and descending, the two expressions would be identical besides the order in which they are passed to the ageDifference function. 
 
 Lets use a Comparator. 
-
+``` java
 Comparator<Person> compareAscending = (p1, p1) -> p1.ageDifference(p2)
 Comparator<Person> compareDescending = compareAscending.reversed(); 
-
+```
 Now we can use these in place of a lambda in the sorted() method, or any other method that accepts  Comparator<T>
 
+``` java
 people.stream().sorted(compareAscending).collect(toList()); 
-
+```
 
 
 Sorting by name 
-
+``` java
 people.stream().sorted( (p1,p2) -> p1.getname().compareto(person2.getname()); 
-
+```
 
 Lets define a Function that compares two names. 
+``` java
 final Function<Person, String> byName = person -> person.getName(); 
+
 
 people.stream().sorted(comparing(byName); 
 
@@ -432,34 +449,33 @@ people.stream().sorted(comparing(byName);
 List<Person> olderThan20 = people.stream()
 	.filter(person -> person.getAge() > 20)
 	.collect(ArrayList::new, ArrayList::add, ArrayList::addAll)
-
+```
 The collect() method gathers elements. To do that, it needs to know how to handle three things: 
 
 	1. How to make the container 
 	2. How to add one element
 	3. How to merge elements. 
-	
 
-I don't have experience with this method. 
 
-.collect() also takes a Collector as a parameter. 
+`.collect()` also takes a ```Collector``` as a parameter. 
 
 https://docs.oracle.com/javase/8/docs/api/java/util/stream/Collectors.html
 
 
 Using Collectors.toList(), we can replace the above code with: 
 
-
+``` java
 List<Person> olderThan20 = people.stream()
 	.filter(person -> person.getAge() > 20)
 	.collect(Collectors.toList())
-
+```
 
 // grouping
 
+``` java
 Map<Integer, List<People>> peopleByAge = people.stream()
 	.collect(Collectors.groupingBy(Person::getAge)); 
-
+```
 
 
 
@@ -496,7 +512,7 @@ Map<Integer, List<People>> peopleByAge = people.stream()
 
 // Consumers
 
-A Consumer is functional interface with one method, accept(). This method takes one input and does not return anything. 
+A `Consumer`is functional interface with one method, accept(). This method takes one input and does not return anything. 
 
 
 
